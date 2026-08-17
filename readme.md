@@ -77,6 +77,23 @@ Base URL: `http://localhost:8000`
 
 Video and TTS routes exist in code but are commented out in `src/Routes/ai.routes.js`.
 
+## Deploy (EC2 + Nginx)
+
+Domain: `api-kb.tachtimize.co` → Nginx → Node on port `8000`.
+
+Copy-paste commands are in [`deploy/README.md`](deploy/README.md).
+
+```bash
+sudo bash deploy/setup.sh
+sudo certbot --nginx -d api-kb.tachtimize.co
+```
+
+Later updates:
+
+```bash
+sudo bash deploy/update.sh
+```
+
 ## Example requests
 
 Upload a file:

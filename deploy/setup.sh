@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Run as root: sudo bash deploy/setup.sh"
+  exit 1
+fi
+
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_USER="${SUDO_USER:-ubuntu}"
+NODE_BIN="$(sudo -u "$APP_USER" bash -lc 'command -v node' || true)"
+
+if [[ -z "$NODE_BIN" ]]; then
+  echo "Node.js not found for user $APP_USER. Install Node 18+ first."
+  exit 1
+fi
+
+if [[ ! -f "$APP_DIR/.env" ]]; then
+  echo "Missing $APP_DIR/.env — copy .env.example and fill keys first."
+  exit 1
+fi
+
+echo "App dir: $APP_DIR"
+echo "User:    $APP_USER"
+echo "Node:    $NODE_BIN"
+
+mkdir -p "$APP_DIR/uploads"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR/uploads"
+
+sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && npm install --omit=dev"
+
+if command -v docker >/dev/null 2>&1; then
+  if docker compose version >/dev/null 2>&1; then
+    sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && docker compose up -d valkey"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && docker-compose up -d valkey"
+  fi
+else
+  echo "Docker not found. Start Redis/Valkey on 127.0.0.1:6379 yourself."
+fi
+
+sed -e "s|__APP_DIR__|$APP_DIR|g" \
+    -e "s|__APP_USER__|$APP_USER|g" \
+    -e "s|__NODE_BIN__|$NODE_BIN|g" \
+    "$APP_DIR/deploy/kb-api.service" > /etc/systemd/system/kb-api.service
+
+sed -e "s|__APP_DIR__|$APP_DIR|g" \
+    -e "s|__APP_USER__|$APP_USER|g" \
+    -e "s|__NODE_BIN__|$NODE_BIN|g" \
+    "$APP_DIR/deploy/kb-worker.service" > /etc/systemd/system/kb-worker.service
+
+if [[ -d /etc/nginx/sites-available ]]; then
+  cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/api-kb.tachtimize.co
+  ln -sfn /etc/nginx/sites-available/api-kb.tachtimize.co /etc/nginx/sites-enabled/api-kb.tachtimize.co
+  rm -f /etc/nginx/sites-enabled/default
+else
+  cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/conf.d/api-kb.tachtimize.co.conf
+fi
+
+nginx -t
+systemctl daemon-reload
+systemctl enable --now kb-api kb-worker
+systemctl reload nginx
+
+echo
+echo "API and worker are running."
+echo "Next, enable HTTPS:"
+echo "  sudo certbot --nginx -d api-kb.tachtimize.co"
+echo
+echo "Check:"
+echo "  curl http://127.0.0.1:8000/chat?message=ping"
+echo "  sudo systemctl status kb-api kb-worker"

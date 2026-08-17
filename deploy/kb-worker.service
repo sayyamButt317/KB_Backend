@@ -1,0 +1,16 @@
+[Unit]
+Description=KB Backend embedding worker
+After=network.target
+
+[Service]
+Type=simple
+User=__APP_USER__
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=__APP_DIR__/.env
+ExecStart=__NODE_BIN__ worker.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

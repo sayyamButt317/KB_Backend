@@ -4,8 +4,10 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
+    "start:worker": "node worker.js",
     "dev": "nodemon server.js",
-    "dev:worker": "node --watch worker.js "
+    "dev:worker": "node --watch worker.js"
   },
   "keywords": [],
   "author": "",
