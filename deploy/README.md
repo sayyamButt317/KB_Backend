@@ -1,6 +1,6 @@
-# EC2 deploy — api-kb.tachtimize.co
+# EC2 deploy — api-kb.techtimize.co
 
-Nginx proxies `https://api-kb.tachtimize.co` to Node on `127.0.0.1:8000`.
+Nginx proxies `https://api-kb.techtimize.co` to Node on `127.0.0.1:8000`.
 Systemd runs the API and the embedding worker.
 
 Security group: open **80** and **443**. Do **not** open **8000** publicly.
@@ -41,7 +41,7 @@ REDIS_PASSWORD=dummy
 ```bash
 cd ~/KB_Backend
 sudo bash deploy/setup.sh
-sudo certbot --nginx -d api-kb.tachtimize.co
+sudo certbot --nginx -d api-kb.techtimize.co
 ```
 
 `setup.sh` installs systemd units, Nginx, starts Valkey, and starts:
@@ -63,5 +63,5 @@ sudo systemctl status kb-api kb-worker
 sudo journalctl -u kb-api -f
 sudo journalctl -u kb-worker -f
 sudo nginx -t && sudo systemctl reload nginx
-curl https://api-kb.tachtimize.co/chat?message=ping
+curl https://api-kb.techtimize.co/chat?message=ping
 ```

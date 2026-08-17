@@ -59,12 +59,16 @@ sed -e "s|__APP_DIR__|$APP_DIR|g" \
     -e "s|__NODE_BIN__|$NODE_BIN|g" \
     "$APP_DIR/deploy/kb-worker.service" > /etc/systemd/system/kb-worker.service
 
+rm -f /etc/nginx/sites-enabled/api-kb.tachtimize.co \
+      /etc/nginx/sites-available/api-kb.tachtimize.co \
+      /etc/nginx/conf.d/api-kb.tachtimize.co.conf
+
 if [[ -d /etc/nginx/sites-available ]]; then
-  cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/api-kb.tachtimize.co
-  ln -sfn /etc/nginx/sites-available/api-kb.tachtimize.co /etc/nginx/sites-enabled/api-kb.tachtimize.co
+  cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/api-kb.techtimize.co
+  ln -sfn /etc/nginx/sites-available/api-kb.techtimize.co /etc/nginx/sites-enabled/api-kb.techtimize.co
   rm -f /etc/nginx/sites-enabled/default
 else
-  cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/conf.d/api-kb.tachtimize.co.conf
+  cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/conf.d/api-kb.techtimize.co.conf
 fi
 
 nginx -t
@@ -75,7 +79,7 @@ systemctl reload nginx
 echo
 echo "API and worker are running."
 echo "Next, enable HTTPS:"
-echo "  sudo certbot --nginx -d api-kb.tachtimize.co"
+echo "  sudo certbot --nginx -d api-kb.techtimize.co"
 echo
 echo "Check:"
 echo "  curl http://127.0.0.1:8000/chat?message=ping"
