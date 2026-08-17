@@ -7,9 +7,10 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP_USER="${SUDO_USER:-ubuntu}"
 
-sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && git pull && npm install --omit=dev"
+cd "$APP_DIR"
+git pull
+npm install --omit=dev --legacy-peer-deps
 systemctl restart kb-api kb-worker
 systemctl status --no-pager kb-api kb-worker
 

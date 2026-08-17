@@ -7,11 +7,20 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP_USER="${SUDO_USER:-ubuntu}"
-NODE_BIN="$(sudo -u "$APP_USER" bash -lc 'command -v node' || true)"
 
+if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
+  APP_USER="$SUDO_USER"
+else
+  APP_USER="$(stat -c '%U' "$APP_DIR")"
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y nginx certbot python3-certbot-nginx
+
+NODE_BIN="$(command -v node || true)"
 if [[ -z "$NODE_BIN" ]]; then
-  echo "Node.js not found for user $APP_USER. Install Node 18+ first."
+  echo "Node.js not found. Install Node 18+ first."
   exit 1
 fi
 
@@ -27,13 +36,14 @@ echo "Node:    $NODE_BIN"
 mkdir -p "$APP_DIR/uploads"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR/uploads"
 
-sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && npm install --omit=dev"
+cd "$APP_DIR"
+npm install --omit=dev --legacy-peer-deps
 
 if command -v docker >/dev/null 2>&1; then
   if docker compose version >/dev/null 2>&1; then
-    sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && docker compose up -d valkey"
+    docker compose up -d valkey
   elif command -v docker-compose >/dev/null 2>&1; then
-    sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && docker-compose up -d valkey"
+    docker-compose up -d valkey
   fi
 else
   echo "Docker not found. Start Redis/Valkey on 127.0.0.1:6379 yourself."
