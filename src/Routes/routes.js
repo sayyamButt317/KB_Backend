@@ -7,8 +7,10 @@ import CreateVectorEmbedding from "../controllers/Embedding/File/vector-embeddin
 import { UploadFolder } from "../controllers/Embedding/Folder/upload-folder.queue.js";
 import DirectoryEmbedding from "../controllers/Embedding/Folder/directory-embedding.controller.js";
 import { GetAllDocs } from "../controllers/collection/doc.controller.js";
-import registerController from "../controllers/user/user.controller.js";
-import loginController from "../controllers/user/user.controller.js";
+import {
+  registerController,
+  loginController,
+} from "../controllers/user/user.controller.js";
 
 
 const router = express.Router(); 
