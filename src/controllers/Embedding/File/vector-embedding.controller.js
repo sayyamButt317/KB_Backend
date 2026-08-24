@@ -13,7 +13,6 @@ export default async function CreateVectorEmbedding(req, res, next) {
 
     console.log("🔍 Searching in Qdrant collection: Document-Embedding");
 
-    // Connect to existing Qdrant collection
     const vectorStore = await QdrantVectorStore.fromExistingCollection(
       embeddings,
       {

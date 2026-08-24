@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import Routes from "./src/Routes/ai.routes.js";
+import Routes from "./src/Routes/routes.js";
 import morgan from "morgan";
 
 const app = express();
@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(cors());
 
 // Routes Declaration
-app.use("/", Routes);
+app.use("/api/v1", Routes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
