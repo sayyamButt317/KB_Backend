@@ -2,12 +2,12 @@ import UserModel from "../../Model/User.Model.js";
 import { generateAccessToken } from "../../Utils/jwt.js";
 
 const registerController = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, companyName, email, password, role } = req.body;
 
-  if (!name || !email || !password) {
+  if (!name || !companyName || !email || !password) {
     return res.status(400).json({
       message:
-        "name, email, and password are required in the JSON body (not query params)",
+        "name, companyName, email, and password are required in the JSON body",
     });
   }
 
@@ -21,6 +21,7 @@ const registerController = async (req, res) => {
 
     const user = await UserModel.create({
       name,
+      companyName,
       email,
       password,
       ...(role ? { role } : {}),
@@ -31,6 +32,7 @@ const registerController = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
+        companyName: user.companyName,
         email: user.email,
         role: user.role,
       },
@@ -69,6 +71,7 @@ const loginController = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
+        companyName: user.companyName,
         email: user.email,
         role: user.role,
       },
