@@ -46,7 +46,6 @@ const registerController = async (req, res) => {
     });
 
     const accessToken = generateAccessToken(user);
-
     return res.status(201).json({
       message: `User registered successfully`,
       accessToken,

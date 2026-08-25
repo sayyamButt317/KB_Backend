@@ -28,4 +28,7 @@ router.get("/chat", CreateVectorEmbedding);
 router.get("/collections", GetAllDocs);
 router.post("/text", TextToSpeech);
 
+router.get("/company", CompanyController);
+router.get("/company/:id", CompanyControllerById);
+
 export default router;
