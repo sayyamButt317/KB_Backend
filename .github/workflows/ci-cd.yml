@@ -51,14 +51,10 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            APP_DIR="${{ secrets.EC2_APP_DIR }}"
-            if [ -z "$APP_DIR" ]; then
-              APP_DIR="/KB_Backend"
-            fi
-            cd "$APP_DIR"
+            cd /KB_Backend
             git fetch origin master
             git reset --hard origin/master
             npm install --omit=dev --legacy-peer-deps
-            sudo systemctl restart kb-api kb-worker
-            sudo systemctl --no-pager --full status kb-api kb-worker || true
+            systemctl restart kb-api kb-worker
+            systemctl --no-pager --full status kb-api kb-worker || true
             echo "Deploy finished: $(git rev-parse --short HEAD)"
