@@ -11,7 +11,7 @@ import {
   verifyEmailController,
 } from "../controllers/user/user.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
-import { CompanyController, CompanyControllerById } from "../controllers/company/company.controller.js";
+import superadminRoutes from "./superadmin.routes.js";
 
 const router = express.Router();
 
@@ -19,6 +19,9 @@ const router = express.Router();
 router.post("/auth/register", registerController);
 router.post("/auth/login", loginController);
 router.post("/auth/verify-email", verifyEmailController);
+
+// Superadmin (JWT + role superadmin)
+router.use("/superadmin", superadminRoutes);
 
 // Everything below requires JWT; companyId always from req.user
 router.use(authMiddleware);
@@ -28,8 +31,5 @@ router.post("/upload/folder", upload.array("files", 100), UploadFolder);
 router.get("/chat", CreateVectorEmbedding);
 router.get("/collections", GetAllDocs);
 router.post("/text", TextToSpeech);
-
-router.get("/company", CompanyController);
-router.get("/company/:id", CompanyControllerById);
 
 export default router;
