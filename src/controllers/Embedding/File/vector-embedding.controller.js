@@ -2,35 +2,36 @@ import { QdrantVectorStore } from "@langchain/qdrant";
 import { embeddings } from "../../../Config/embedding.config.js";
 import client from "../../../Config/ai.config.js";
 import AI_PROMPT from "../../../Utils/Prompt.js";
+import {
+  tenantCollectionName,
+  companyFilter,
+} from "../../../Utils/tenant.js";
 
-export default async function CreateVectorEmbedding(req, res, next) {
+export default async function CreateVectorEmbedding(req, res) {
   try {
     const userQuery = req.query.message;
-
     if (!userQuery) {
       return res.status(400).json({ error: "Query message is required" });
     }
 
-    console.log("🔍 Searching in Qdrant collection: Document-Embedding");
+    const companyId = req.user.companyId;
+    console.log(
+      `🔍 Searching collection ${tenantCollectionName()} for company ${companyId}`
+    );
 
     const vectorStore = await QdrantVectorStore.fromExistingCollection(
       embeddings,
       {
         url: process.env.QDRANT_URL,
         apiKey: process.env.QDRANT_API_KEY,
-        collectionName: "Document-Embedding",
+        collectionName: tenantCollectionName(),
       }
     );
-    
 
-    // Use retriever
-    const retriever = vectorStore.asRetriever({ k: 2 });
-    const result = await retriever.invoke(userQuery);
+    const filter = companyFilter(companyId);
+    const result = await vectorStore.similaritySearch(userQuery, 2, filter);
 
-    // Build system prompt with retrieved docs
     const SYSTEM_PROMPT = `${AI_PROMPT}\n\nRelevant Documents:\n${JSON.stringify(result, null, 2)}`;
-
-    // Send query to AI
     const chatResult = await client.chat.completions.create({
       model: "gpt-4.1",
       messages: [
@@ -39,11 +40,10 @@ export default async function CreateVectorEmbedding(req, res, next) {
       ],
     });
 
-    // Respond with AI answer + docs
     return res.json({
       success: true,
       message: chatResult.choices[0].message.content,
-      docs: result, 
+      docs: result,
       status: "completed",
     });
   } catch (error) {

@@ -1,16 +1,19 @@
 import BullQueue from "../../../Config/BullQueue.js";
 
-
-export async function UploadFolder(req,res) {
+export async function UploadFolder(req, res) {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "No folder uploaded" });
     }
 
+    const companyId = req.user.companyId;
+
     const job = await BullQueue.add("folder-ready", {
-        folderPath: req.files[0].destination,
+      folderPath: req.files[0].destination,
       folderName: req.files.map((file) => file.originalname),
       isFolder: true,
+      companyId,
+      userId: req.user.id,
     });
 
     return res.json({ message: "Folder uploaded successfully", jobId: job.id });

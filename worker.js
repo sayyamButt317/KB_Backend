@@ -4,6 +4,10 @@ import { CharacterTextSplitter } from "@langchain/textsplitters";
 import embeddings from "./src/Config/embedding.config.js";
 import loadFile from "./src/services/loadfile.service.js";
 import loadFolder from "./src/services/loadfolder.service.js";
+import {
+  tenantCollectionName,
+  withCompanyMetadata,
+} from "./src/Utils/tenant.js";
 import dotenv from "dotenv";
 
 dotenv.config({ path: "./.env" });
@@ -13,7 +17,12 @@ export const worker = new Worker(
   async (job) => {
     try {
       console.log(`🚀 Processing job: ${job.id}`);
-      const { folderPath, path, isFolder } = job.data;
+      const { folderPath, path, isFolder, companyId } = job.data;
+
+      if (!companyId) {
+        throw new Error("Job missing companyId — cannot embed without tenant");
+      }
+
       let docs = [];
       if (isFolder) {
         docs = await loadFolder(folderPath);
@@ -21,13 +30,13 @@ export const worker = new Worker(
         console.log(`📄 Loading single file: ${path}`);
         docs = await loadFile(path);
       }
-      // Check if collection exists
+
       const vectorStore = await QdrantVectorStore.fromExistingCollection(
         embeddings,
         {
           url: process.env.QDRANT_URL,
           apiKey: process.env.QDRANT_API_KEY,
-          collectionName: "Document-Embedding",
+          collectionName: tenantCollectionName(),
         }
       );
 
@@ -36,9 +45,12 @@ export const worker = new Worker(
         chunkOverlap: 200,
       });
       const splitDocs = await textSplitter.splitDocuments(docs);
-      console.log(`✂️ Split into ${splitDocs.length} chunks`);
+      const tenantDocs = withCompanyMetadata(splitDocs, companyId);
+      console.log(
+        `✂️ Split into ${tenantDocs.length} chunks for company ${companyId}`
+      );
 
-      const result = await vectorStore.addDocuments(splitDocs);
+      const result = await vectorStore.addDocuments(tenantDocs);
       console.log(`✅ Vectorization complete`);
 
       return {
@@ -47,13 +59,15 @@ export const worker = new Worker(
         jobId: job.id,
         result: result,
         status: "completed",
+        companyId: String(companyId),
       };
     } catch (error) {
       console.error(`❌ Job ${job.id} failed:`, error);
-      return { success: false,
-         message: "Vectorization failed",
-         status: "failed",
-         error: error.message,
+      return {
+        success: false,
+        message: "Vectorization failed",
+        status: "failed",
+        error: error.message,
       };
     }
   },
@@ -64,7 +78,4 @@ export const worker = new Worker(
       password: process.env.REDIS_PASSWORD,
     },
   }
-  
- 
-  
 );

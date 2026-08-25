@@ -1,8 +1,19 @@
 import UserModel from "../../Model/User.Model.js";
+import CompanyModel from "../../Model/Company.Model.js";
 import { generateAccessToken } from "../../Utils/jwt.js";
 
+function slugifyCompanyName(name) {
+  const base = String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return `${base || "company"}-${Date.now().toString(36)}`;
+}
+
 const registerController = async (req, res) => {
-  const { name, companyName, email, password, role } = req.body;
+  const { name, companyName, email, password } = req.body;
 
   if (!name || !companyName || !email || !password) {
     return res.status(400).json({
@@ -19,22 +30,33 @@ const registerController = async (req, res) => {
       });
     }
 
+    const company = await CompanyModel.create({
+      name: companyName,
+      slug: slugifyCompanyName(companyName),
+    });
+
+    // First user of a new company is admin; never trust client companyId/role for tenancy
     const user = await UserModel.create({
       name,
-      companyName,
       email,
       password,
-      ...(role ? { role } : {}),
+      companyId: company._id,
+      companyName: company.name,
+      role: "admin",
     });
+
+    const accessToken = generateAccessToken(user);
 
     return res.status(201).json({
       message: `User registered successfully`,
+      accessToken,
       user: {
         id: user._id,
         name: user.name,
-        companyName: user.companyName,
         email: user.email,
         role: user.role,
+        companyId: company._id,
+        companyName: company.name,
       },
     });
   } catch (error) {
@@ -54,7 +76,7 @@ const loginController = async (req, res) => {
   }
 
   try {
-    const user = await UserModel.findOne({ email });
+    const user = await UserModel.findOne({ email }).populate("companyId", "name slug");
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
@@ -63,7 +85,24 @@ const loginController = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const accessToken = generateAccessToken(user);
+    if (!user.companyId) {
+      return res.status(400).json({
+        message: "User is not linked to a company. Please re-register.",
+      });
+    }
+
+    const company =
+      typeof user.companyId === "object" && user.companyId?._id
+        ? user.companyId
+        : null;
+
+    const tokenUser = {
+      _id: user._id,
+      companyId: company?._id || user.companyId,
+      role: user.role,
+    };
+
+    const accessToken = generateAccessToken(tokenUser);
 
     return res.status(200).json({
       message: "Login successful",
@@ -71,9 +110,10 @@ const loginController = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        companyName: user.companyName,
         email: user.email,
         role: user.role,
+        companyId: company?._id || user.companyId,
+        companyName: company?.name || user.companyName,
       },
     });
   } catch (error) {
@@ -84,7 +124,7 @@ const loginController = async (req, res) => {
 };
 
 const verifyEmailController = async (req, res) => {
-  const { email } = req.body;
-}
+  return res.status(501).json({ message: "Not implemented" });
+};
 
 export { registerController, loginController, verifyEmailController };

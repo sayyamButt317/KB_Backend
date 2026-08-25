@@ -7,9 +7,14 @@ const UserSchema = new mongoose.Schema(
       required: [true, "User name is required"],
       trim: true,
     },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: [true, "Company is required"],
+      index: true,
+    },
     companyName: {
       type: String,
-      required: [true, "Company name is required"],
       trim: true,
     },
     email: {
@@ -22,11 +27,11 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true,"Password is required"],
+      required: [true, "Password is required"],
     },
     role: {
       type: String,
-      default: "user",
+      default: "admin",
       enum: ["user", "admin"],
     },
   },

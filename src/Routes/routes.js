@@ -1,33 +1,31 @@
 import express from "express";
 import { TextToSpeech } from "../controllers/Voice/tts.controller.js";
-import {UploadFile} from "../controllers/Embedding/File/upload-file.controller.js";
+import { UploadFile } from "../controllers/Embedding/File/upload-file.controller.js";
 import { upload } from "../Config/multer.config.js";
-import VideoGenerator from "../controllers/Video/VideoGenerator.controller.js";
 import CreateVectorEmbedding from "../controllers/Embedding/File/vector-embedding.controller.js";
 import { UploadFolder } from "../controllers/Embedding/Folder/upload-folder.queue.js";
-import DirectoryEmbedding from "../controllers/Embedding/Folder/directory-embedding.controller.js";
 import { GetAllDocs } from "../controllers/collection/doc.controller.js";
 import {
   registerController,
   loginController,
   verifyEmailController,
 } from "../controllers/user/user.controller.js";
+import authMiddleware from "../middleware/auth.middleware.js";
 
+const router = express.Router();
 
-const router = express.Router(); 
-// AI Routes
-router.post("/upload/file", upload.single("file"), UploadFile);
-router.post("/upload/folder", upload.array("files", 100), UploadFolder);
-router.get("/chat", CreateVectorEmbedding,DirectoryEmbedding);
-router.get("/collections", GetAllDocs);
-
-router.post("/text", TextToSpeech);
-
-// User Routes
+// Public auth routes
 router.post("/auth/register", registerController);
 router.post("/auth/login", loginController);
 router.post("/auth/verify-email", verifyEmailController);
 
-// router.post("/video-prompt", VideoGenerator);
+// Everything below requires JWT; companyId always from req.user
+router.use(authMiddleware);
+
+router.post("/upload/file", upload.single("file"), UploadFile);
+router.post("/upload/folder", upload.array("files", 100), UploadFolder);
+router.get("/chat", CreateVectorEmbedding);
+router.get("/collections", GetAllDocs);
+router.post("/text", TextToSpeech);
 
 export default router;
