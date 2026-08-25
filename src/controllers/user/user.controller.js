@@ -1,7 +1,16 @@
 import UserModel from "../../Model/User.Model.js";
+import { generateAccessToken } from "../../Utils/jwt.js";
 
 const registerController = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({
+      message:
+        "name, email, and password are required in the JSON body (not query params)",
+    });
+  }
+
   try {
     const userExists = await UserModel.findOne({ email });
     if (userExists) {
@@ -10,9 +19,21 @@ const registerController = async (req, res) => {
       });
     }
 
-    await UserModel.create({ name, email, password });
+    const user = await UserModel.create({
+      name,
+      email,
+      password,
+      ...(role ? { role } : {}),
+    });
+
     return res.status(201).json({
       message: `User registered successfully`,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -23,6 +44,13 @@ const registerController = async (req, res) => {
 
 const loginController = async (req, res) => {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      message: "email and password are required in the JSON body",
+    });
+  }
+
   try {
     const user = await UserModel.findOne({ email });
     if (!user) {
@@ -33,8 +61,11 @@ const loginController = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    const accessToken = generateAccessToken(user);
+
     return res.status(200).json({
       message: "Login successful",
+      accessToken,
       user: {
         id: user._id,
         name: user.name,

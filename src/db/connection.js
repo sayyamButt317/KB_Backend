@@ -8,7 +8,9 @@ let qdrantClient;
 
 const connectionDB = async () => {
   try {
-    const connectionInstance = await mongoose.connect(`${process.env.MONGODB_URI}/${process.env.DB_NAME}`);
+    const connectionInstance = await mongoose.connect(process.env.MONGODB_URI, {
+      dbName: process.env.MONGO_DB_NAME,
+    });
    console.log(chalk.green(`Connected to ${connectionInstance.connection.host} database! ✅`));
     qdrantClient = new QdrantClient({
       url: process.env.QDRANT_URL,

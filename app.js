@@ -8,6 +8,7 @@ const app = express();
 // Middleware
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 // Routes Declaration
