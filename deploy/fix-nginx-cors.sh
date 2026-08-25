@@ -1,18 +1,48 @@
-# Shared CORS preflight — include this inside every server { } for api-kb
-# (HTTP :80 and HTTPS :443 after certbot).
+#!/usr/bin/env bash
+# Fix CORS OPTIONS on the live HTTPS nginx site (certbot-managed).
+# Run on EC2: sudo bash deploy/fix-nginx-cors.sh
 
-# --- paste into location / { } ---
-# if ($request_method = OPTIONS) { ... return 204; }
+set -euo pipefail
 
+SITE=""
+for f in \
+  /etc/nginx/sites-available/api-kb.techtimize.co \
+  /etc/nginx/sites-enabled/api-kb.techtimize.co \
+  /etc/nginx/conf.d/api-kb.techtimize.co.conf
+do
+  if [[ -f "$f" ]]; then SITE="$f"; break; fi
+done
+
+if [[ -z "$SITE" ]]; then
+  echo "Nginx site file for api-kb.techtimize.co not found."
+  exit 1
+fi
+
+echo "Updating: $SITE"
+cp "$SITE" "${SITE}.bak.$(date +%s)"
+
+# Write a known-good config. Certbot SSL paths are the Ubuntu defaults.
+cat > "$SITE" <<'EOF'
 server {
     listen 80;
     listen [::]:80;
     server_name api-kb.techtimize.co;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name api-kb.techtimize.co;
+
+    ssl_certificate /etc/letsencrypt/live/api-kb.techtimize.co/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api-kb.techtimize.co/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     client_max_body_size 200M;
 
     location / {
-        # Answer preflight here so CORS works even if Node is down
         if ($request_method = OPTIONS) {
             add_header Access-Control-Allow-Origin "$http_origin" always;
             add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
@@ -38,8 +68,15 @@ server {
         proxy_read_timeout 120s;
         proxy_buffering off;
 
-        # Ensure API error responses still expose CORS to the browser
         add_header Access-Control-Allow-Origin "$http_origin" always;
         add_header Access-Control-Allow-Credentials "true" always;
     }
 }
+EOF
+
+nginx -t
+systemctl reload nginx
+echo "Nginx reloaded with CORS OPTIONS on HTTPS."
+echo "Now restart the API:"
+echo "  sudo systemctl restart kb-api kb-worker"
+echo "  sudo systemctl status kb-api --no-pager"
