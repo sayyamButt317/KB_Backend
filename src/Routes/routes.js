@@ -11,6 +11,7 @@ import {
   verifyEmailController,
 } from "../controllers/user/user.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
+import { CompanyController, CompanyControllerById } from "../controllers/company/company.controller.js";
 
 const router = express.Router();
 

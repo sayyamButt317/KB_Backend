@@ -29,4 +29,4 @@ const CompanyControllerById =async(request,response) => {
     }
 };
 
-export default CompanyController;
+export { CompanyController, CompanyControllerById };
