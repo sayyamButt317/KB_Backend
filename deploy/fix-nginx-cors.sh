@@ -1,7 +1,3 @@
-#!/usr/bin/env bash
-# Fix CORS OPTIONS on the live HTTPS nginx site (certbot-managed).
-# Run on EC2: sudo bash deploy/fix-nginx-cors.sh
-
 set -euo pipefail
 
 SITE=""
@@ -21,7 +17,6 @@ fi
 echo "Updating: $SITE"
 cp "$SITE" "${SITE}.bak.$(date +%s)"
 
-# Write a known-good config. Certbot SSL paths are the Ubuntu defaults.
 cat > "$SITE" <<'EOF'
 server {
     listen 80;
@@ -43,6 +38,7 @@ server {
     client_max_body_size 200M;
 
     location / {
+        # OPTIONS only here. Do not add CORS on proxied responses.
         if ($request_method = OPTIONS) {
             add_header Access-Control-Allow-Origin "$http_origin" always;
             add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
@@ -67,16 +63,11 @@ server {
         proxy_send_timeout 120s;
         proxy_read_timeout 120s;
         proxy_buffering off;
-
-        add_header Access-Control-Allow-Origin "$http_origin" always;
-        add_header Access-Control-Allow-Credentials "true" always;
     }
 }
 EOF
 
 nginx -t
 systemctl reload nginx
-echo "Nginx reloaded with CORS OPTIONS on HTTPS."
-echo "Now restart the API:"
-echo "  sudo systemctl restart kb-api kb-worker"
-echo "  sudo systemctl status kb-api --no-pager"
+echo "Nginx reloaded (no duplicate CORS on POST/GET)."
+echo "Confirm API is up: sudo systemctl restart kb-api && curl -sI http://127.0.0.1:8000/api/v1/auth/login"
