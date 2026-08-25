@@ -94,6 +94,12 @@ Later updates:
 sudo bash deploy/update.sh
 ```
 
+### CI/CD
+
+Pushing to `master` runs GitHub Actions: install + syntax check, then SSH deploy to EC2.
+
+Add these repo secrets: `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` (optional: `EC2_APP_DIR`, `EC2_PORT`). Details in [`deploy/README.md`](deploy/README.md#5-cicd-github-actions).
+
 ## Example requests
 
 Upload a file:

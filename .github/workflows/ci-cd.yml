@@ -1,0 +1,64 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Install & check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Syntax check
+        run: |
+          node --check server.js
+          node --check worker.js
+          node --check app.js
+          node --check src/controllers/user/user.controller.js
+          node --check src/Routes/routes.js
+
+  deploy:
+    name: Deploy to EC2
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ secrets.EC2_APP_DIR }}"
+            if [ -z "$APP_DIR" ]; then
+              APP_DIR="/KB_Backend"
+            fi
+            cd "$APP_DIR"
+            git fetch origin master
+            git reset --hard origin/master
+            npm install --omit=dev --legacy-peer-deps
+            sudo systemctl restart kb-api kb-worker
+            sudo systemctl --no-pager --full status kb-api kb-worker || true
+            echo "Deploy finished: $(git rev-parse --short HEAD)"
