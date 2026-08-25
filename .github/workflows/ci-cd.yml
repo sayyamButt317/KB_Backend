@@ -51,10 +51,14 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            cd /KB-BACKEND
-            git fetch origin master
-            git reset --hard origin/master
-            npm install --omit=dev --legacy-peer-deps
-            sudo systemctl restart kb-api kb-worker
-            sudo systemctl --no-pager --full status kb-api kb-worker || true
-            echo "Deploy finished: $(git rev-parse --short HEAD)"
+            sudo bash -lc '
+              set -euo pipefail
+              git config --global --add safe.directory /KB_Backend
+              cd /KB_Backend
+              git fetch origin master
+              git reset --hard origin/master
+              npm install --omit=dev --legacy-peer-deps
+              systemctl restart kb-api kb-worker
+              systemctl --no-pager --full status kb-api kb-worker || true
+              echo "Deploy finished: $(git rev-parse --short HEAD)"
+            '
