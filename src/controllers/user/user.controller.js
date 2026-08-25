@@ -80,4 +80,8 @@ const loginController = async (req, res) => {
   }
 };
 
-export { registerController, loginController };
+const verifyEmailController = async (req, res) => {
+  const { email } = req.body;
+}
+
+export { registerController, loginController, verifyEmailController };

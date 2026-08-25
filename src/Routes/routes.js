@@ -10,6 +10,7 @@ import { GetAllDocs } from "../controllers/collection/doc.controller.js";
 import {
   registerController,
   loginController,
+  verifyEmailController,
 } from "../controllers/user/user.controller.js";
 
 
@@ -23,8 +24,9 @@ router.get("/collections", GetAllDocs);
 router.post("/text", TextToSpeech);
 
 // User Routes
-router.post("/register", registerController);
-router.post("/login", loginController);
+router.post("/auth/register", registerController);
+router.post("/auth/login", loginController);
+router.post("/auth/verify-email", verifyEmailController);
 
 // router.post("/video-prompt", VideoGenerator);
 
