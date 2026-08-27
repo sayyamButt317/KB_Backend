@@ -11,7 +11,12 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(superadminMiddleware);
 
+// Plural (preferred)
 router.get("/companies", getAllCompanies);
 router.get("/companies/:id", getCompanyById);
+
+// Singular alias (matches frontend /superadmin/company)
+router.get("/company", getAllCompanies);
+router.get("/company/:id", getCompanyById);
 
 export default router;
