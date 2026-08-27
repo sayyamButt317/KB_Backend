@@ -30,5 +30,8 @@ const ChatSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+ChatSchema.index({ companyId: 1, createdAt: -1 });
+ChatSchema.index({ companyId: 1, userId: 1, createdAt: -1 });
+
 const ChatModel = mongoose.model("Chat", ChatSchema);
 export default ChatModel;
