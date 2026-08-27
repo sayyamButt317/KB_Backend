@@ -6,6 +6,7 @@ import {
   tenantCollectionName,
   companyFilter,
 } from "../../../Utils/tenant.js";
+import ChatModel from "../../../Model/Chat.Model.js";
 
 export default async function CreateVectorEmbedding(req, res) {
   try {
@@ -15,6 +16,8 @@ export default async function CreateVectorEmbedding(req, res) {
     }
 
     const companyId = req.user.companyId;
+    const userId = req.user.id;
+
     console.log(
       `🔍 Searching collection ${tenantCollectionName()} for company ${companyId}`
     );
@@ -40,10 +43,21 @@ export default async function CreateVectorEmbedding(req, res) {
       ],
     });
 
+    const answer = chatResult.choices[0].message.content;
+
+    const chat = await ChatModel.create({
+      companyId,
+      userId,
+      message: userQuery,
+      response: answer,
+      docs: result,
+    });
+
     return res.json({
       success: true,
-      message: chatResult.choices[0].message.content,
+      message: answer,
       docs: result,
+      chatId: chat._id,
       status: "completed",
     });
   } catch (error) {

@@ -6,6 +6,10 @@ import CreateVectorEmbedding from "../controllers/Embedding/File/vector-embeddin
 import { UploadFolder } from "../controllers/Embedding/Folder/upload-folder.queue.js";
 import { GetAllDocs } from "../controllers/collection/doc.controller.js";
 import {
+  GetChats,
+  GetChatById,
+} from "../controllers/Company/chat/chat.controller.js";
+import {
   registerController,
   loginController,
   verifyEmailController,
@@ -29,6 +33,10 @@ router.use(authMiddleware);
 router.post("/upload/file", upload.single("file"), UploadFile);
 router.post("/upload/folder", upload.array("files", 100), UploadFolder);
 router.get("/chat", CreateVectorEmbedding);
+
+router.get("/chats", GetChats);
+router.get("/chats/:id", GetChatById);
+
 router.get("/collections", GetAllDocs);
 router.post("/text", TextToSpeech);
 
