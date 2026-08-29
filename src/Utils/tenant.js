@@ -17,16 +17,26 @@ export function companyFilter(companyId) {
   };
 }
 
-/** Stamp companyId onto LangChain document metadata before upsert */
-export function withCompanyMetadata(docs, companyId) {
-  const id = String(companyId);
-  return docs.map((doc) => {
+/** Stamp tenant + document metadata onto LangChain chunks before Qdrant upsert */
+export function withChunkMetadata(docs, { companyId, documentId, filename }) {
+  const cid = String(companyId);
+  const did = String(documentId);
+
+  return docs.map((doc, index) => {
     doc.metadata = {
       ...(doc.metadata || {}),
-      companyId: id,
+      companyId: cid,
+      documentId: did,
+      chunkId: `${did}_${index}`,
+      pageNumber: doc.metadata?.loc?.pageNumber ?? doc.metadata?.page ?? null,
+      filename: filename || doc.metadata?.source || null,
     };
     return doc;
   });
+}
+
+export function withCompanyMetadata(docs, companyId) {
+  return withChunkMetadata(docs, { companyId, documentId: "legacy", filename: null });
 }
 
 export function companyUploadRoot(companyId) {

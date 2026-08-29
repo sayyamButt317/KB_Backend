@@ -3,71 +3,252 @@ import { QdrantVectorStore } from "@langchain/qdrant";
 import { CharacterTextSplitter } from "@langchain/textsplitters";
 import embeddings from "./src/Config/embedding.config.js";
 import loadFile from "./src/services/loadfile.service.js";
-import loadFolder from "./src/services/loadfolder.service.js";
+import {
+  markDocumentProcessing,
+  markDocumentReady,
+  markDocumentsFailed,
+} from "./src/services/document.service.js";
+import { connectionDB } from "./src/db/connection.js";
 import {
   tenantCollectionName,
-  withCompanyMetadata,
+  withChunkMetadata,
 } from "./src/Utils/tenant.js";
 import dotenv from "dotenv";
+import chalk from "chalk";
 
 dotenv.config({ path: "./.env" });
 
-export const worker = new Worker(
+const VECTORIZATION_STEPS = [
+  "Job started",
+  "Loading file",
+  "Splitting document",
+  "Creating embeddings",
+  "Finalizing",
+  "Complete",
+];
+
+function logVectorizationStep(job, data) {
+  const stepIndex = VECTORIZATION_STEPS.indexOf(data.message);
+  const stepLabel =
+    stepIndex >= 0
+      ? `Step ${stepIndex + 1}/${VECTORIZATION_STEPS.length}`
+      : "Step";
+  const parts = [
+    chalk.cyan(`[Job ${job.id}]`),
+    chalk.yellow(`${stepLabel} (${data.progress}%)`),
+    data.message,
+  ];
+
+  if (data.filename) parts.push(chalk.gray(`file: ${data.filename}`));
+  if (data.documentId) parts.push(chalk.gray(`doc: ${data.documentId}`));
+
+  console.log(parts.join(" | "));
+}
+
+async function reportProgress(job, data) {
+  logVectorizationStep(job, data);
+  await job.updateProgress({
+    progress: data.progress,
+    status: data.status,
+    message: data.message,
+    documentId: data.documentId ?? null,
+    companyId: data.companyId ?? null,
+    filename: data.filename ?? null,
+  });
+}
+
+async function embedDocument({ job, documentId, path, filename, companyId }) {
+  await markDocumentProcessing(documentId);
+  await reportProgress(job, {
+    progress: 25,
+    status: "processing",
+    message: "Loading file",
+    documentId,
+    companyId,
+    filename,
+  });
+
+  const docs = await loadFile(path);
+  console.log(
+    chalk.blue(
+      `[Job ${job.id}] Loaded ${docs.length} section(s) from ${filename || path}`
+    )
+  );
+
+  await reportProgress(job, {
+    progress: 45,
+    status: "processing",
+    message: "Splitting document",
+    documentId,
+    companyId,
+    filename,
+  });
+
+  const vectorStore = await QdrantVectorStore.fromExistingCollection(
+    embeddings,
+    {
+      url: process.env.QDRANT_URL,
+      apiKey: process.env.QDRANT_API_KEY,
+      collectionName: tenantCollectionName(),
+    }
+  );
+
+  const textSplitter = new CharacterTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 200,
+  });
+  const splitDocs = await textSplitter.splitDocuments(docs);
+  const tenantDocs = withChunkMetadata(splitDocs, {
+    companyId,
+    documentId,
+    filename,
+  });
+  console.log(
+    chalk.blue(
+      `[Job ${job.id}] Split into ${tenantDocs.length} chunk(s) for ${filename || path}`
+    )
+  );
+
+  await reportProgress(job, {
+    progress: 70,
+    status: "processing",
+    message: "Creating embeddings",
+    documentId,
+    companyId,
+    filename,
+  });
+
+  await vectorStore.addDocuments(tenantDocs);
+  console.log(
+    chalk.green(
+      `[Job ${job.id}] Stored ${tenantDocs.length} embedding(s) in Qdrant for ${filename || path}`
+    )
+  );
+  await markDocumentReady(documentId, tenantDocs.length);
+
+  await reportProgress(job, {
+    progress: 95,
+    status: "processing",
+    message: "Finalizing",
+    documentId,
+    companyId,
+    filename,
+  });
+
+  return tenantDocs.length;
+}
+
+async function startWorker() {
+  await connectionDB();
+
+  const worker = new Worker(
   "file-upload-queue",
   async (job) => {
     try {
       console.log(`🚀 Processing job: ${job.id}`);
-      const { folderPath, path, isFolder, companyId } = job.data;
+      const { path, isFolder, companyId, documentId, documents, filename } =
+        job.data;
 
       if (!companyId) {
         throw new Error("Job missing companyId — cannot embed without tenant");
       }
 
-      let docs = [];
-      if (isFolder) {
-        docs = await loadFolder(folderPath);
+      await reportProgress(job, {
+        progress: 10,
+        status: "processing",
+        message: "Job started",
+        companyId,
+        documentId,
+        filename,
+      });
+
+      let totalChunks = 0;
+
+      if (isFolder && Array.isArray(documents) && documents.length > 0) {
+        const step = 80 / documents.length;
+        for (let i = 0; i < documents.length; i++) {
+          const doc = documents[i];
+          console.log(`📄 Processing file: ${doc.path}`);
+          const chunks = await embedDocument({
+            job,
+            documentId: doc.documentId,
+            path: doc.path,
+            filename: doc.filename,
+            companyId,
+          });
+          totalChunks += chunks;
+          await reportProgress(job, {
+            progress: Math.min(95, 15 + step * (i + 1)),
+            status: "processing",
+            message: `Processed ${i + 1}/${documents.length} files`,
+            documentId: doc.documentId,
+            companyId,
+            filename: doc.filename,
+          });
+        }
       } else {
-        console.log(`📄 Loading single file: ${path}`);
-        docs = await loadFile(path);
+        if (!documentId || !path) {
+          throw new Error("Job missing documentId or path");
+        }
+        totalChunks = await embedDocument({
+          job,
+          documentId,
+          path,
+          filename: job.data.filename,
+          companyId,
+        });
       }
 
-      const vectorStore = await QdrantVectorStore.fromExistingCollection(
-        embeddings,
-        {
-          url: process.env.QDRANT_URL,
-          apiKey: process.env.QDRANT_API_KEY,
-          collectionName: tenantCollectionName(),
-        }
-      );
-
-      const textSplitter = new CharacterTextSplitter({
-        chunkSize: 1000,
-        chunkOverlap: 200,
+      await reportProgress(job, {
+        progress: 100,
+        status: "completed",
+        message: "Complete",
+        companyId,
+        documentId,
+        filename,
       });
-      const splitDocs = await textSplitter.splitDocuments(docs);
-      const tenantDocs = withCompanyMetadata(splitDocs, companyId);
-      console.log(
-        `✂️ Split into ${tenantDocs.length} chunks for company ${companyId}`
-      );
 
-      const result = await vectorStore.addDocuments(tenantDocs);
-      console.log(`✅ Vectorization complete`);
+      console.log(`✅ Vectorization complete (${totalChunks} chunks)`);
 
       return {
         success: true,
         message: "Vectorization complete",
         jobId: job.id,
-        result: result,
         status: "completed",
         companyId: String(companyId),
+        documentId: documentId ? String(documentId) : null,
+        documentIds:
+          documents?.map((d) => d.documentId) ||
+          (documentId ? [documentId] : []),
+        chunks: totalChunks,
       };
     } catch (error) {
       console.error(`❌ Job ${job.id} failed:`, error);
+
+      const { documentId, documents, companyId } = job.data;
+      const ids =
+        documents?.map((d) => d.documentId) ||
+        (documentId ? [documentId] : []);
+      if (ids.length) {
+        await markDocumentsFailed(ids, error.message);
+      }
+
+      await reportProgress(job, {
+        progress: 100,
+        status: "failed",
+        message: "Vectorization failed",
+        companyId,
+        documentId,
+        error: error.message,
+      });
+
       return {
         success: false,
         message: "Vectorization failed",
         status: "failed",
         error: error.message,
+        companyId: companyId ? String(companyId) : null,
+        documentId: documentId ? String(documentId) : null,
       };
     }
   },
@@ -79,3 +260,12 @@ export const worker = new Worker(
     },
   }
 );
+
+  console.log(chalk.bgGreen("Worker connected and listening on file-upload-queue"));
+  return worker;
+}
+
+startWorker().catch((err) => {
+  console.error("Worker failed to start:", err);
+  process.exit(1);
+});

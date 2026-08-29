@@ -7,6 +7,7 @@ const CompanySchema = new mongoose.Schema(
       required: [true, "Company name is required"],
       trim: true,
     },
+
     slug: {
       type: String,
       required: true,
@@ -14,9 +15,23 @@ const CompanySchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+
+    status: {
+      type: String,
+      enum: ["active", "suspended", "trial", "cancelled"],
+      default: "trial",
+      index: true,
+    },
+
+    plan: {
+      type: String,
+      enum: ["free", "pro", "business", "enterprise"],
+      default: "free",
+    },
   },
   { timestamps: true }
 );
 
 const CompanyModel = mongoose.model("Company", CompanySchema);
+
 export default CompanyModel;

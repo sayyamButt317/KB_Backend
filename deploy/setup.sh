@@ -82,5 +82,5 @@ echo "Next, enable HTTPS:"
 echo "  sudo certbot --nginx -d api-kb.techtimize.co"
 echo
 echo "Check:"
-echo "  curl http://127.0.0.1:8000/chat?message=ping"
+echo "  curl -I http://127.0.0.1:8000/api/v1/conversations"
 echo "  sudo systemctl status kb-api kb-worker"

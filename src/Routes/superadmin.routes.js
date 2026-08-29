@@ -15,8 +15,4 @@ router.use(superadminMiddleware);
 router.get("/companies", getAllCompanies);
 router.get("/companies/:id", getCompanyById);
 
-// Singular alias (matches frontend /superadmin/company)
-router.get("/company", getAllCompanies);
-router.get("/company/:id", getCompanyById);
-
 export default router;

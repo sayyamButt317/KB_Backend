@@ -112,5 +112,5 @@ sudo systemctl status kb-api kb-worker
 sudo journalctl -u kb-api -f
 sudo journalctl -u kb-worker -f
 sudo nginx -t && sudo systemctl reload nginx
-curl https://api-kb.techtimize.co/chat?message=ping
+curl -I https://api-kb.techtimize.co/api/v1/conversations
 ```

@@ -1,45 +1,84 @@
-import { QdrantClient } from "@qdrant/js-client-rest";
 import {
-  tenantCollectionName,
-  companyFilter,
-} from "../../Utils/tenant.js";
+  listDocumentsByCompany,
+  getDocumentByCompany,
+  deleteDocumentByDocumentId,
+} from "../../services/document.service.js";
 
-export async function GetAllDocs(req, res) {
+export async function ListDocuments(req, res) {
   try {
-    const companyId = req.user.companyId;
-    const client = new QdrantClient({
-      url: process.env.QDRANT_URL,
-      apiKey: process.env.QDRANT_API_KEY,
+    const result = await listDocumentsByCompany({
+      companyId: req.user.companyId,
+      status: req.query.status,
+      page: req.query.page,
+      limit: req.query.limit,
     });
 
-    const collectionName = tenantCollectionName();
-    const filter = companyFilter(companyId);
-
-    const scrolled = await client.scroll(collectionName, {
-      filter,
-      limit: 100,
-      with_payload: true,
-      with_vector: false,
-    });
-
-    const points = (scrolled.points || []).map((p) => ({
-      id: p.id,
-      metadata: p.payload?.metadata || p.payload || {},
-      pageContent: p.payload?.pageContent || p.payload?.content || null,
-    }));
+    if (result.invalidStatus) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Use pending, processing, ready, or failed.",
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      companyId,
-      collection: collectionName,
-      count: points.length,
-      documents: points,
+      ...result,
     });
   } catch (error) {
-    console.error("❌ Error listing docs:", error);
+    console.error("ListDocuments error:", error);
     return res.status(500).json({
       success: false,
-      error: error.message || "Internal server error",
+      message: error.message || "Internal server error",
+    });
+  }
+}
+
+export async function GetDocumentByCompanyId(req, res) {
+  try {
+    const document = await getDocumentByCompany(
+      req.params.id,
+      req.query.companyId
+    );
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      document,
+    });
+  } catch (error) {
+    console.error("GetDocument error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+}
+
+export async function DeleteDocumentByDocumentId(req, res) {
+  try {
+    const document = await deleteDocumentByDocumentId(req.params.id);
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+    await deleteDocument(req.params.id);
+    return res.status(200).json({
+      success: true,
+      message: "Document deleted successfully",
+    });
+  } catch (error) {
+    console.error("DeleteDocumentByCompanyId error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
     });
   }
 }

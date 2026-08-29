@@ -6,9 +6,7 @@ const { connectionDB } = await import("./src/db/connection.js");
 const chalk = (await import("chalk")).default;
 const { createServer } = await import("http");
 const { Server } = await import("socket.io");
-const { default: registerEmbeddingEvents } = await import(
-  "./src/Queue-Event/embedding.events.js"
-);
+const { default: registerWebSocket } = await import("./src/Config/webSocket.js");
 
 const server = createServer(app);
 export const io = new Server(server, {
@@ -22,7 +20,7 @@ export const io = new Server(server, {
   },
 });
 
-registerEmbeddingEvents(io);
+registerWebSocket(io);
 
 connectionDB()
   .then(() => {

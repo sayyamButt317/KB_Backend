@@ -67,15 +67,23 @@ Without the worker, uploads will queue but embeddings will not finish.
 
 ## API
 
-Base URL: `http://localhost:8000`
+Base URL: `http://localhost:8000/api/v1`
+
+Auth: send `Authorization: Bearer <accessToken>` on protected routes (register/login first).
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| `POST` | `/auth/register` | Register user + company |
+| `POST` | `/auth/login` | Login, returns JWT |
 | `POST` | `/upload/file` | Upload one file (`form-data` field: `file`) |
 | `POST` | `/upload/folder` | Upload many files (`form-data` field: `files`) |
-| `GET` | `/chat?message=your question` | Chat against the embeddings |
-
-Video and TTS routes exist in code but are commented out in `src/Routes/ai.routes.js`.
+| `POST` | `/conversations` | Create a new chat |
+| `GET` | `/conversations` | List your chats |
+| `GET` | `/conversations/:id` | Get chat with messages |
+| `POST` | `/conversations/:id/messages` | Send a message (RAG reply) |
+| `DELETE` | `/conversations/:id` | Delete a chat |
+| `GET` | `/documents` | List company documents (paginated) |
+| `GET` | `/documents/:id` | Get one company document |
 
 ## Deploy (EC2 + Nginx)
 
@@ -108,8 +116,11 @@ Upload a file:
 curl -X POST http://localhost:8000/upload/file -F "file=@./example.pdf"
 ```
 
-Ask a question:
+Ask a question (after login + creating a conversation):
 
 ```powershell
-curl "http://localhost:8000/chat?message=What%20is%20this%20document%20about"
+curl -X POST http://localhost:8000/api/v1/conversations/CONVERSATION_ID/messages `
+  -H "Authorization: Bearer YOUR_TOKEN" `
+  -H "Content-Type: application/json" `
+  -d "{\"content\":\"What is this document about?\"}"
 ```

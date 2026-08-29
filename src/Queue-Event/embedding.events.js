@@ -12,17 +12,29 @@ const registerEmbeddingEvents = (io) => {
   Events.on("completed", async ({ jobId, returnvalue }) => {
     let payload = returnvalue;
     if (typeof payload === "string") payload = JSON.parse(payload);
-    io.emit(`job:${jobId}`, {
+
+    const event = {
       status: payload?.status || "completed",
       result: payload?.result,
       message: payload?.message,
-    });
+      jobId,
+      companyId: payload?.companyId || null,
+      documentId: payload?.documentId || null,
+      documentIds: payload?.documentIds || [],
+      chunks: payload?.chunks || 0,
+    };
+
+    io.emit(`job:${jobId}`, event);
+    if (payload?.companyId) {
+      io.to(`company:${payload.companyId}`).emit("embedding:completed", event);
+    }
   });
 
   Events.on("failed", async ({ jobId, failedReason }) => {
     io.emit(`job:${jobId}`, {
       status: "failed",
       error: failedReason,
+      jobId,
     });
   });
 };

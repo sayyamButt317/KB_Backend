@@ -4,39 +4,52 @@ const UserSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "User name is required"],
+      required: true,
       trim: true,
     },
+
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: [true, "Company is required"],
+      required: true,
       index: true,
     },
+
     companyName: {
       type: String,
       trim: true,
     },
+
     email: {
       type: String,
-      required: [true, "Email is required"],
-      trim: true,
+      required: true,
       unique: true,
       lowercase: true,
-      match: [/.+\@.+\..+/, "Please use a Valid Email Address"],
+      trim: true,
     },
+
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: true,
     },
+
     role: {
       type: String,
-      default: "admin",
       enum: ["user", "admin", "superadmin"],
+      default: "user",
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "inactive", "suspended"],
+      default: "active",
     },
   },
   { timestamps: true }
 );
 
+UserSchema.index({ companyId: 1, createdAt: -1 });
+
 const UserModel = mongoose.model("User", UserSchema);
+
 export default UserModel;

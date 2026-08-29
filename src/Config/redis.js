@@ -2,20 +2,18 @@ import { Redis } from "ioredis";
 import dotenv from "dotenv";
 
 dotenv.config({ path: "./.env" });
-const { REDIS_USERNAME, REDIS_PASSWORD, REDIS_HOST, REDIS_PORT } = process.env;
 
-if (!REDIS_USERNAME || !REDIS_PASSWORD || !REDIS_HOST || !REDIS_PORT) {
-  throw new Error("Missing Redis configuration in environment variables");
+const { REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_USERNAME } = process.env;
+if (!REDIS_HOST || !REDIS_PORT) {
+  throw new Error("Missing REDIS_HOST or REDIS_PORT in environment variables");
 }
 
-// Create a Redis client
 const connectRedis = new Redis({
-  username: REDIS_USERNAME,
-  password: REDIS_PASSWORD,
   host: REDIS_HOST,
   port: Number(REDIS_PORT),
+  password: REDIS_PASSWORD || undefined,
+  username: REDIS_USERNAME || undefined,
   db: 0,
-  retryDelayOnFailover: 100,
   maxRetriesPerRequest: 3,
 });
 
