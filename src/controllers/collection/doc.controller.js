@@ -1,8 +1,13 @@
+import path from "path";
+import { pipeline } from "stream/promises";
 import {
   listDocumentsByCompany,
   getDocumentByCompany,
-  deleteDocumentByDocumentId,
+  getDocumentFileForCompany,
+  softDeleteDocument,
 } from "../../services/document.service.js";
+import { deleteS3Object } from "../../services/s3.service.js";
+import DocumentModel from "../../Model/Document.Model.js";
 
 export async function ListDocuments(req, res) {
   try {
@@ -33,11 +38,11 @@ export async function ListDocuments(req, res) {
   }
 }
 
-export async function GetDocumentByCompanyId(req, res) {
+export async function GetDocument(req, res) {
   try {
     const document = await getDocumentByCompany(
       req.params.id,
-      req.query.companyId
+      req.user.companyId
     );
 
     if (!document) {
@@ -60,22 +65,87 @@ export async function GetDocumentByCompanyId(req, res) {
   }
 }
 
-export async function DeleteDocumentByDocumentId(req, res) {
+export async function ViewDocumentFile(req, res) {
   try {
-    const document = await deleteDocumentByDocumentId(req.params.id);
-    if (!document) {
+    const result = await getDocumentFileForCompany(
+      req.params.id,
+      req.user.companyId
+    );
+
+    if (result.notFound) {
       return res.status(404).json({
         success: false,
         message: "Document not found",
       });
     }
-    await deleteDocument(req.params.id);
+
+    if (result.invalidPath || result.fileMissing) {
+      return res.status(404).json({
+        success: false,
+        message: "File not available",
+      });
+    }
+
+    const { document } = result;
+    const download = req.query.download === "true";
+    const disposition = download ? "attachment" : "inline";
+    const safeFilename = document.filename.replace(/["\r\n]/g, "_");
+
+    res.setHeader(
+      "Content-Type",
+      document.mimeType || "application/octet-stream"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `${disposition}; filename="${safeFilename}"`
+    );
+
+    if (result.source === "s3" && result.stream) {
+      await pipeline(result.stream, res);
+      return;
+    }
+
+    return res.sendFile(path.resolve(document.path));
+  } catch (error) {
+    console.error("ViewDocumentFile error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+}
+
+export async function DeleteDocument(req, res) {
+  try {
+    const existing = await DocumentModel.findOne({
+      _id: req.params.id,
+      companyId: req.user.companyId,
+      deletedAt: null,
+    }).select("+s3Key storage");
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    if (existing.storage === "s3" && existing.s3Key) {
+      await deleteS3Object(existing.s3Key);
+    }
+
+    const document = await softDeleteDocument(
+      req.params.id,
+      req.user.companyId
+    );
+
     return res.status(200).json({
       success: true,
       message: "Document deleted successfully",
+      document,
     });
   } catch (error) {
-    console.error("DeleteDocumentByCompanyId error:", error);
+    console.error("DeleteDocument error:", error);
     return res.status(500).json({
       success: false,
       message: error.message || "Internal server error",

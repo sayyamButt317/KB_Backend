@@ -55,7 +55,7 @@ export default async function DirectoryEmbedding(req, res) {
       {
         url: process.env.QDRANT_URL,
         apiKey: process.env.QDRANT_API_KEY,
-        collectionName: tenantCollectionName(),
+        collectionName: tenantCollectionName(companyId),
       }
     );
 

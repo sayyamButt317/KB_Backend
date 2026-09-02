@@ -3,7 +3,12 @@ import { TextToSpeech } from "../controllers/Voice/tts.controller.js";
 import { UploadFile } from "../controllers/Embedding/File/upload-file.controller.js";
 import { upload } from "../Config/multer.config.js";
 import { UploadFolder } from "../controllers/Embedding/Folder/upload-folder.queue.js";
-import { ListDocuments, GetDocumentByCompanyId, DeleteDocumentByDocumentId } from "../controllers/collection/doc.controller.js";
+import {
+  ListDocuments,
+  GetDocument,
+  ViewDocumentFile,
+  DeleteDocument,
+} from "../controllers/collection/doc.controller.js";
 import {
   CreateConversation,
   ListConversations,
@@ -39,8 +44,9 @@ router.post("/conversations/:id/messages", SendMessage);
 router.delete("/delete/conversations/:id", DeleteConversation);
 
 router.get("/documents", ListDocuments);
-router.get("/documents/:id", GetDocumentByCompanyId);
-router.delete("/delete/documents/:id", DeleteDocumentByDocumentId);
+router.get("/documents/:id/file", ViewDocumentFile);
+router.get("/documents/:id", GetDocument);
+router.delete("/delete/documents/:id", DeleteDocument);
 
 router.post("/text-to-speech", TextToSpeech);
 

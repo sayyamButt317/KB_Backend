@@ -65,6 +65,8 @@ npm run dev:worker
 
 Without the worker, uploads will queue but embeddings will not finish.
 
+When AWS credentials are set, uploaded files are stored in S3 under `files/<companyId>/`. Otherwise they stay in local `uploads/`.
+
 ## API
 
 Base URL: `http://localhost:8000/api/v1`
@@ -83,7 +85,8 @@ Auth: send `Authorization: Bearer <accessToken>` on protected routes (register/l
 | `POST` | `/conversations/:id/messages` | Send a message (RAG reply) |
 | `DELETE` | `/conversations/:id` | Delete a chat |
 | `GET` | `/documents` | List company documents (paginated) |
-| `GET` | `/documents/:id` | Get one company document |
+| `GET` | `/documents/:id` | Get one company document (includes `viewUrl`) |
+| `GET` | `/documents/:id/file` | View or download the uploaded file |
 
 ## Deploy (EC2 + Nginx)
 

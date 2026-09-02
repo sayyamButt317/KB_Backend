@@ -21,8 +21,20 @@ const DocumentSchema = new mongoose.Schema(
     },
     path: {
       type: String,
-      required: true,
+      default: null,
       select: false,
+    },
+    s3Key: {
+      type: String,
+      default: null,
+      select: false,
+      index: true,
+    },
+    storage: {
+      type: String,
+      enum: ["local", "s3"],
+      default: "local",
+      index: true,
     },
     mimeType: {
       type: String,

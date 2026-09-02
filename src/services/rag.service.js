@@ -33,7 +33,7 @@ export async function runRagQuery({ companyId, query, useCache = true }) {
     {
       url: process.env.QDRANT_URL,
       apiKey: process.env.QDRANT_API_KEY,
-      collectionName: tenantCollectionName(),
+      collectionName: tenantCollectionName(companyId),
     }
   );
 

@@ -1,6 +1,7 @@
 import BullQueue from "../../../Config/BullQueue.js";
 import DocumentModel from "../../../Model/Document.Model.js";
 import { emitDocumentStatus } from "../../../Config/webSocket.js";
+import { persistUploadedFile } from "../../../services/upload-storage.service.js";
 
 export async function UploadFile(req, res) {
   try {
@@ -11,11 +12,18 @@ export async function UploadFile(req, res) {
     const companyId = req.user.companyId;
     const userId = req.user.id;
 
+    const stored = await persistUploadedFile({
+      file: req.file,
+      companyId,
+    });
+
     const document = await DocumentModel.create({
       companyId,
       userId,
       filename: req.file.originalname,
-      path: req.file.path,
+      path: stored.path,
+      s3Key: stored.s3Key,
+      storage: stored.storage,
       mimeType: req.file.mimetype,
       size: req.file.size,
       status: "pending",
@@ -23,8 +31,9 @@ export async function UploadFile(req, res) {
 
     const job = await BullQueue.add("file-ready", {
       filename: req.file.originalname,
-      destination: req.file.destination,
-      path: req.file.path,
+      path: stored.path,
+      s3Key: stored.s3Key,
+      storage: stored.storage,
       isFolder: false,
       companyId,
       userId,
@@ -48,6 +57,7 @@ export async function UploadFile(req, res) {
       message: "File uploaded successfully",
       jobId: job.id,
       documentId: document._id,
+      storage: stored.storage,
     });
   } catch (error) {
     console.error("Upload error:", error);

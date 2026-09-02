@@ -125,7 +125,6 @@ export async function SendMessage(req, res) {
     });
 
     await bumpConversation(access._id, req.user.companyId, 2);
-
     const conversation = await getConversationWithMessages(
       access._id,
       req.user.companyId

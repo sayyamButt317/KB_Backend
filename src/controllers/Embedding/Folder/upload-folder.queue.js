@@ -1,6 +1,7 @@
 import BullQueue from "../../../Config/BullQueue.js";
 import DocumentModel from "../../../Model/Document.Model.js";
 import { emitDocumentStatus } from "../../../Config/webSocket.js";
+import { persistUploadedFiles } from "../../../services/upload-storage.service.js";
 
 export async function UploadFolder(req, res) {
   try {
@@ -10,30 +11,35 @@ export async function UploadFolder(req, res) {
 
     const companyId = req.user.companyId;
     const userId = req.user.id;
+    const storedFiles = await persistUploadedFiles({ files: req.files, companyId });
 
     const documents = await Promise.all(
-      req.files.map((file) =>
-        DocumentModel.create({
+      req.files.map((file, index) => {
+        const stored = storedFiles[index];
+        return DocumentModel.create({
           companyId,
           userId,
           filename: file.originalname,
-          path: file.path,
+          path: stored.path,
+          s3Key: stored.s3Key,
+          storage: stored.storage,
           mimeType: file.mimetype,
           size: file.size,
           status: "pending",
-        })
-      )
+        });
+      })
     );
 
     const job = await BullQueue.add("folder-ready", {
-      folderPath: req.files[0].destination,
       folderName: req.files.map((file) => file.originalname),
       isFolder: true,
       companyId,
       userId,
-      documents: documents.map((doc) => ({
+      documents: documents.map((doc, index) => ({
         documentId: String(doc._id),
-        path: doc.path,
+        path: storedFiles[index].path,
+        s3Key: storedFiles[index].s3Key,
+        storage: storedFiles[index].storage,
         filename: doc.filename,
       })),
     });
@@ -56,6 +62,7 @@ export async function UploadFolder(req, res) {
       message: "Folder uploaded successfully",
       jobId: job.id,
       documentIds: documents.map((d) => d._id),
+      storage: storedFiles[0]?.storage || "local",
     });
   } catch (error) {
     console.error("Upload error:", error);
