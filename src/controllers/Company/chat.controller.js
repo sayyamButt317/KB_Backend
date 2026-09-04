@@ -8,8 +8,8 @@ import {
   bumpConversation,
   assertConversationAccess,
   deleteConversation,
-} from "../../../services/conversation.service.js";
-import { runRagQuery } from "../../../services/rag.service.js";
+} from "../../services/conversation.service.js";
+import { runRagQuery } from "../../services/rag.service.js";
 
 export async function CreateConversation(req, res) {
   try {
@@ -177,3 +177,30 @@ export async function DeleteConversation(req, res) {
     return res.status(500).json({ success: false, message: error.message });
   }
 }
+
+export async function AImodeConversation(req, res) {
+  try {
+    const { content } = req.body;
+    if (!content?.trim()) {
+      return res.status(400).json({ success: false, message: "content is required" });
+    }
+
+    const completion = await client.conversations.create({
+      model: 'gpt-5.5',
+      metadata: {
+        companyId: req.user.companyId,
+        userId: req.user.id,
+        conversationId: req.params.id,
+      },
+      items: [
+        { role: 'user', content: content },
+        { role: 'ai', content: 'Are semicolons optional in JavaScript?' },
+      ],
+    });
+
+    return res.status(200).json({ success: true, message: completion.choices[0].message.content });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+

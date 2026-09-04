@@ -15,7 +15,7 @@ import {
   GetConversation,
   SendMessage,
   DeleteConversation,
-} from "../controllers/Company/chat/chat.controller.js";
+} from "../controllers/Company/chat.controller.js";
 import {
   registerController,
   loginController,
@@ -23,6 +23,8 @@ import {
 } from "../controllers/user/user.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 import superadminRoutes from "./superadmin.routes.js";
+import { UploadURL } from "../controllers/Embedding/URL/url.controller.js";
+import { AImodeConversation } from "../controllers/Company/chat.controller.js";
 
 const router = express.Router();
 
@@ -35,6 +37,7 @@ router.use(authMiddleware);
 
 router.post("/upload/file", upload.single("file"), UploadFile);
 router.post("/upload/folder", upload.array("files", 100), UploadFolder);
+router.post("/upload/url", UploadURL);
 
 router.post("/conversations", CreateConversation);
 router.get("/conversations", ListConversations);
@@ -42,6 +45,8 @@ router.get("/conversations/:id", GetConversation);
 
 router.post("/conversations/:id/messages", SendMessage);
 router.delete("/delete/conversations/:id", DeleteConversation);
+
+router.post("/ai-mode/conversation/:id/message", AImodeConversation);
 
 router.get("/documents", ListDocuments);
 router.get("/documents/:id/file", ViewDocumentFile);
