@@ -1,4 +1,5 @@
 import { Worker } from "bullmq";
+import { Document } from "@langchain/core/documents";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import embeddings from "./src/Config/embedding.config.js";
@@ -65,6 +66,7 @@ async function embedDocument({
   storage,
   filename,
   companyId,
+  content = null,
 }) {
   await markDocumentProcessing(documentId);
   await reportProgress(job, {
@@ -76,10 +78,18 @@ async function embedDocument({
     filename,
   });
 
-  const docs = await loadDocumentFile({ path, s3Key, storage, filename });
+  const docs = content
+    ? [
+        new Document({
+          pageContent: content,
+          metadata: { source: filename || "url", sourceType: "google_doc" },
+        }),
+      ]
+    : await loadDocumentFile({ path, s3Key, storage, filename });
+
   console.log(
     chalk.blue(
-      `[Job ${job.id}] Loaded ${docs.length} section(s) from ${filename || path}`
+      `[Job ${job.id}] Loaded ${docs.length} section(s) from ${filename || path || "url"}`
     )
   );
 
@@ -104,15 +114,7 @@ async function embedDocument({
   const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 4000,
     chunkOverlap: 500,
-    separators: [
-      "\n\n",
-      "\n",
-      ". ",
-      "? ",
-      "! ",
-      " ",
-      ""
-    ],
+    separators: ["\n\n", "\n", ". ", "? ", "! ", " ", ""],
   });
   const splitDocs = await textSplitter.splitDocuments(docs);
   const tenantDocs = withChunkMetadata(splitDocs, {
@@ -122,7 +124,7 @@ async function embedDocument({
   });
   console.log(
     chalk.blue(
-      `[Job ${job.id}] Split into ${tenantDocs.length} chunk(s) for ${filename || path}`
+      `[Job ${job.id}] Split into ${tenantDocs.length} chunk(s) for ${filename || path || "url"}`
     )
   );
 
@@ -141,7 +143,7 @@ async function embedDocument({
   }
   console.log(
     chalk.green(
-      `[Job ${job.id}] Stored ${tenantDocs.length} embedding(s) in Qdrant for ${filename || path}`
+      `[Job ${job.id}] Stored ${tenantDocs.length} embedding(s) in Qdrant for ${filename || path || "url"}`
     )
   );
 
@@ -167,8 +169,18 @@ async function startWorker() {
   async (job) => {
     try {
       console.log(`🚀 Processing job: ${job.id}`);
-      const { path, isFolder, companyId, documentId, documents, filename, s3Key, storage } =
-        job.data;
+      const {
+        path,
+        isFolder,
+        isUrl,
+        companyId,
+        documentId,
+        documents,
+        filename,
+        s3Key,
+        storage,
+        content,
+      } = job.data;
 
       if (!companyId) {
         throw new Error("Job missing companyId — cannot embed without tenant");
@@ -209,6 +221,17 @@ async function startWorker() {
             filename: doc.filename,
           });
         }
+      } else if (isUrl) {
+        if (!documentId || !content) {
+          throw new Error("URL job missing documentId or content");
+        }
+        totalChunks = await embedDocument({
+          job,
+          documentId,
+          filename: job.data.filename,
+          companyId,
+          content,
+        });
       } else {
         if (!documentId || (!path && !s3Key)) {
           throw new Error("Job missing documentId or file location");
