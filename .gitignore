@@ -25,4 +25,5 @@ build/
 
 # Coverage
 coverage/
-config.bat
+
+.env
